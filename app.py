@@ -1,7 +1,12 @@
 import os
 import json
 import telebot
+import requests
+import extensions
 
+
+class ConvertionException(Exception):
+    print('Something wrong')
 
 def open_config_file():  # Получение настроек бота
     if os.path.exists('bot_config.json'):
@@ -34,19 +39,70 @@ bot_config = open_config_file()
 bot = telebot.TeleBot(bot_config["token"])
 
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start', 'help'])
 def start(message: telebot.types.Message):
     text = 'Чтобы начать работу с ботом введите следующие данные:\n Валюта из которой предстоит конвертировать\n ' \
-        'Валюта в которую предстоит конвертировать\n Количество конвертируемой валюты'
+           'Валюта в которую предстоит конвертировать\n Количество конвертируемой валюты'
     bot.reply_to(message, text)
 
 
-@bot.message_handler(commands=['currencies'])
+@bot.message_handler(commands=['values'])
 def currencies(message: telebot.types.Message):
     text = "Доступные валюты: "
     for currency in currencies_list:
-        text = '\n'.join((text, currency, ))
+        text = '\n'.join((text, currency,))
     bot.reply_to(message, text)
+
+
+@bot.message_handler(content_types=['text', ])
+def convertattion(message: telebot.types.Message):
+    quote, base, amount, rate = CryptoConverter.convert(message)
+    total_base = json.loads(rate.content)[currencies_list[base]]
+    quote_ticker = currencies_list[quote]
+    base_ticker = currencies_list[base]
+    text = f'Цена {amount} {quote} в {base} составляет: {total_base * int(amount)}'
+    bot.send_message(message.chat.id, text)
+
+
+class CryptoConverter:
+    @staticmethod
+    def convert(message):
+        values = message.text.split(' ')
+
+        if len(values) > 3:
+            bot.send_message(message.chat.id, 'Слишком много параметров')
+            raise ConvertionException('Слишком много параметров.')
+        elif len(values) < 3:
+            bot.send_message(message.chat.id, 'Слишком мало параметров')
+            raise ConvertionException('Слишком мало параметров.')
+        quote, base, amount = values
+
+        if quote == base:
+            # raise extensions.ConvertionException(f'Невозможно перевести одинаковые валюты {base}.')
+            # Не удалять, это пример
+            bot.send_message(message.chat.id, 'Одинаковая валюта')
+            raise ConvertionException(f'Невозможно перевести одинаковые валюты {base}.')
+
+        try:
+            quote_ticker = currencies_list[quote]
+        except KeyError:
+            bot.send_message(message.chat.id, 'Кривая валюта')
+            raise ConvertionException(f'Не удалось обработать валюту {quote}.')
+
+        try:
+            base_ticker = currencies_list[base]
+        except KeyError:
+            bot.send_message(message.chat.id, 'Кривая валюта')
+            raise ConvertionException(f'Не удалось обработать валюту {base}.')
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            bot.send_message(message.chat.id, 'Кривое количество')
+            raise ConvertionException(f'Не удалось обработать количество {amount}.')
+
+        rate = requests.get(f'https://min-api.cryptocompare.com/data/price?fsym={quote_ticker}&tsyms={base_ticker}')
+        return quote, base, amount, rate
 
 
 bot.polling()
