@@ -3,7 +3,7 @@ import os
 import json
 
 
-class APIException (Exception):
+class APIException(Exception):
     pass
 
 
@@ -15,52 +15,55 @@ class CryptoConverter:
     @staticmethod
     def convert(message):
         values = message.text.split(' ')
-        answer = "NoErrors"
-        if len(values) > 3:
-            answer = f'Слишком много параметров'
-            # raise APIException('Слишком много параметров')
-        elif len(values) < 3:
-            answer = f'Слишком мало параметров'
-            # raise APIException('Слишком мало параметров')
-
-        quote, base, amount = values
-
-        if quote == base:
-            answer = f'Невозможно конвертировать одинаковые валюты'
-            # raise APIException(f'Невозможно конвертировать одинаковые валюты {base}.')
-
+        quote_ticker = base_ticker = quote = base = amount = answer = ""
         try:
-            quote_ticker = currencies_list[quote]
-        except KeyError:
-            answer = f'Недопустимая валюта {quote}'
-            # raise APIException(f'Не удалось обработать валюту {quote}')
+            quote, base, amount = values
+            quote = quote.upper()
 
-        try:
-            base_ticker = currencies_list[base]
-        except KeyError:
-            answer = f'Недопустимая валюта {quote}'
-            # raise APIException(f'Не удалось обработать валюту {base}.')
+            base = base.upper()
+            try:
+                amount = float(amount)
+            except Exception:
+                answer += f'Некорректный ввод, введите число\n'
 
-        try:
-            amount = amount
+            if quote == base:
+                answer += f'Невозможно конвертировать одинаковые валюты: "{base}"'
+            else:
+                # Проверим, входит ли первая валюта в список валют
+                try:
+                    quote_ticker = currencies_list[quote]
+                except KeyError:
+                    answer += f'Недопустимая валюта "{quote}"\n чтобы узнать список допустимых валют введите /values'
+
+                # Проверим, входит ли вторая валюта в список валют
+                try:
+                    base_ticker = currencies_list[base]
+                except KeyError:
+                    answer += f'Недопустимая валюта "{base}"\n чтобы узнать список допустимых валют введите /values'
         except ValueError:
-            answer = f'Недопустимая валюта {quote}'
-            # raise APIException(f'Не удалось обработать количество {amount}.')
+            if len(values) > 3:
+                answer += f'Слишком много параметров'
+            elif len(values) < 3:
+                answer += f'Слишком мало параметров'
 
+        if answer != "":
+            raise APIException(answer)
         rate = CryptoConverter.get_price(quote_ticker, base_ticker)
         return answer, quote, base, amount, rate
 
 
-def open_currencies_file():  # Получение настроек бота
+def open_currencies_file():  # Получение валют бота
     if os.path.exists('currencies.json'):
-        with open('currencies.json', 'r') as currencies_file:
+        with open('currencies.json', 'r', encoding='utf-8') as currencies_file:
             currencies_file = json.load(currencies_file)
-    else:  # если файл настроек не найден
-        empty_currencies = {'Euro': "EUR", 'Ruble': "RUB", 'Dollar': 'USD'}
+    else:  # если файл валют не найден
+        empty_currencies = {'ЕВРО': "EUR", 'РУБЛЬ': "RUB", 'ДОЛЛАР': 'USD'}
         with open('currencies.json', 'w') as empty_currencies_file:
-            # Создадим пустой файл настройки
-            empty_currencies_file.write(json.dumps(empty_currencies))
-            print("Нет файла настройки. Создан пустой файл настройки в текущем каталоге")
+            # Создадим файл валют
+            empty_currencies_file.write(json.dumps(empty_currencies, indent=4))
+            print("Нет файла валют. Создан пустой файл валют в текущем каталоге")
+        with open('currencies.json', 'r', encoding='utf-8') as currencies_file:
+            currencies_file = json.load(currencies_file)
     return currencies_file
 
 

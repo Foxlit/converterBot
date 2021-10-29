@@ -49,18 +49,16 @@ def currencies(message: telebot.types.Message):
 
 @bot.message_handler(content_types=['text', ])
 def convertattion(message: telebot.types.Message):
-    answer, quote, base, amount, rate = extensions.CryptoConverter.convert(message)
-    if answer == "NoErrors":
-        print ('OK')
-    else:
-        print(f'not OK: {answer}')
-
-    total_base = json.loads(rate.content)[currencies_list[base]]
-    quote_ticker = currencies_list[quote]
-    base_ticker = currencies_list[base]
-    text = f'Цена {amount} {quote} в {base} составляет: {total_base * int(amount)}'
-    bot.send_message(message.chat.id, text)
+    try:
+        answer, quote, base, amount, rate = extensions.CryptoConverter.convert(message)
+        if answer == "":
+            total_base = json.loads(rate.content)[currencies_list[base]]
+            text = f'{amount} {quote} = {total_base * amount} {base}'
+            bot.send_message(message.chat.id, text)
+        else:
+            bot.send_message(message.chat.id, answer)
+    except extensions.APIException as e:
+        bot.send_message(message.chat.id, str(e))
 
 
 bot.polling()
-
