@@ -9,8 +9,11 @@ class APIException(Exception):
 
 class CryptoConverter:
     @staticmethod
-    def get_price(quote_ticker, base_ticker):
-        return requests.get(f'https://min-api.cryptocompare.com/data/price?fsym={quote_ticker}&tsyms={base_ticker}')
+    def get_price(quote, base, amount=1):
+        req = requests.get(f'https://min-api.cryptocompare.com/data/price?fsym={currencies_list[quote]}'
+                           f'&tsyms={currencies_list[base]}')
+        rate = json.loads(req.content)[currencies_list[base]]
+        return rate * amount
 
     @staticmethod
     def convert(message):
@@ -48,8 +51,8 @@ class CryptoConverter:
 
         if answer != "":
             raise APIException(answer)
-        rate = CryptoConverter.get_price(quote_ticker, base_ticker)
-        return answer, quote, base, amount, rate
+        total_base = CryptoConverter.get_price(quote, base, amount)
+        return answer, quote, base, amount, total_base
 
 
 def open_currencies_file():  # Получение валют бота

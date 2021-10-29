@@ -10,11 +10,20 @@ def open_config_file():  # Получение настроек бота
         with open('bot_config.json', 'r') as config_file:
             bot_config_file = json.load(config_file)
     else:  # если файл настроек не найден
-        empty_config = {'token': 0}
+        insert_token = input("Введите токен бота: ")
+        if len(insert_token) < 46:
+            insert_token = "Please insert token here"
+            print("Создан новый файл настройки в текущем каталоге, но бот не запущен. Укажите в файле 'bot_config.json'"
+                  " корректный токен бота")
+        else:
+            print("Создан новый файл настройки в текущем каталоге с введенным токеном")
+        empty_config = {'token': insert_token}
         with open('bot_config.json', 'w') as empty_config_file:
-            # Создадим пустой файл настройки
+            # Создадим файл настройки
             empty_config_file.write(json.dumps(empty_config))
-            print("Нет файла настройки. Создан пустой файл настройки в текущем каталоге")
+        if os.path.exists('bot_config.json'):
+            with open('bot_config.json', 'r') as config_file:
+                bot_config_file = json.load(config_file)
     return bot_config_file
 
 
@@ -25,15 +34,16 @@ currencies_list = extensions.open_currencies_file()
 
 @bot.message_handler(commands=['start'])
 def start(message: telebot.types.Message):
-    text = 'Чтобы начать работу с ботом введите следующие данные:\n Валюта из которой предстоит конвертировать\n ' \
-           'Валюта в которую предстоит конвертировать\n Количество конвертируемой валюты'
+    text = 'Чтобы начать работу с ботом введите следующие данные:\nВалюта которую предстоит конвертировать\n' \
+           'Валюта в которую предстоит конвертировать\nКоличество конвертируемой валюты\n' \
+           'Например: доллар рубль 100\nКоманда /values - показывает доступные валюты\nКоманда /help - вызывает справку'
     bot.reply_to(message, text)
 
 
 @bot.message_handler(commands=['help'])
 def help_message(message: telebot.types.Message, available=None):
-    text = 'Для конвертации введите следующие данные:\n Валюта из которой предстоит конвертировать\n ' \
-           'Валюта в которую предстоит конвертировать\n Количество конвертируемой валюты'
+    text = 'Для конвертации введите следующие данные:\nВалюта из которой предстоит конвертировать\n' \
+           'Валюта в которую предстоит конвертировать\nКоличество конвертируемой валюты\nНапример: доллар рубль 100'
     available_commands = '/help - справка\n'\
                          '/values - показывает список досупных валют'
     bot.send_message(message.chat.id, f'{text}\n {available_commands}')
@@ -50,10 +60,10 @@ def currencies(message: telebot.types.Message):
 @bot.message_handler(content_types=['text', ])
 def convertattion(message: telebot.types.Message):
     try:
-        answer, quote, base, amount, rate = extensions.CryptoConverter.convert(message)
+        answer, quote, base, amount, total_base = extensions.CryptoConverter.convert(message)
         if answer == "":
-            total_base = json.loads(rate.content)[currencies_list[base]]
-            text = f'{amount} {quote} = {total_base * amount} {base}'
+
+            text = f'{amount} {quote} = {total_base} {base}'
             bot.send_message(message.chat.id, text)
         else:
             bot.send_message(message.chat.id, answer)
