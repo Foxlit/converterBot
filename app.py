@@ -29,7 +29,7 @@ def open_config_file():  # Получение настроек бота
 
 bot_config = open_config_file()
 bot = telebot.TeleBot(bot_config["token"])
-currencies_list = extensions.open_currencies_file()
+currencies_list = extensions.get_currencies_list()
 
 
 @bot.message_handler(commands=['start'])
@@ -45,30 +45,46 @@ def help_message(message: telebot.types.Message, available=None):
     text = 'Для конвертации введите следующие данные:\nВалюта из которой предстоит конвертировать\n' \
            'Валюта в которую предстоит конвертировать\nКоличество конвертируемой валюты\nНапример: доллар рубль 100'
     available_commands = '/help - справка\n'\
-                         '/values - показывает список досупных валют'
+                         '/values - показать список досупных валют\n' \
+                         '/add - добавить валюту'
     bot.send_message(message.chat.id, f'{text}\n {available_commands}')
 
 
-@bot.message_handler(commands=['values'])
+@bot.message_handler(commands=['values', 'валюты'])
 def currencies(message: telebot.types.Message):
     text = "Доступные валюты: "
-    for currency in currencies_list:
+    for currency in extensions.get_currencies_list():
         text = '\n'.join((text, currency,))
     bot.reply_to(message, text)
 
 
+@bot.message_handler(commands=['add', 'добавить'])
+def add(message: telebot.types.Message):
+    bot.send_message(message.chat.id, "Введите название валюты и через пробел буквенный код ответом на это сообщение")
+
+
 @bot.message_handler(content_types=['text', ])
 def convertattion(message: telebot.types.Message):
-    try:
-        answer, quote, base, amount, total_base = extensions.CryptoConverter.convert(message)
-        if answer == "":
-
-            text = f'{amount} {quote} = {total_base} {base}'
-            bot.send_message(message.chat.id, text)
-        else:
-            bot.send_message(message.chat.id, answer)
-    except extensions.APIException as e:
-        bot.send_message(message.chat.id, str(e))
+    replied_message = message.reply_to_message
+    if replied_message is None:
+        try:
+            answer, quote, base, amount, total_base = extensions.CryptoConverter.convert(message)
+            if answer == "":
+                text = f'{amount} {quote} = {total_base} {base}'
+                bot.send_message(message.chat.id, text)
+            else:
+                bot.send_message(message.chat.id, answer)
+        except extensions.APIException as e:
+            bot.send_message(message.chat.id, str(e))
+    else:
+        if replied_message.text == "Введите название валюты и через пробел буквенный код ответом на это сообщение":
+            values = message.text.split(' ')
+            if len(values) == 2:
+                currency_name, currency_code = values
+                extensions.open_currencies_file("add", currency_name.upper(), currency_code.upper())
+                bot.reply_to(message, f"Валюта {currency_name.upper} ({currency_code.upper}) добавлена")
+            else:
+                bot.reply_to(message, "Ошибка ввода. Подвторите команду /add")
 
 
 bot.polling()

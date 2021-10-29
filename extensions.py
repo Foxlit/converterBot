@@ -10,15 +10,15 @@ class APIException(Exception):
 class CryptoConverter:
     @staticmethod
     def get_price(quote, base, amount=1):
-        req = requests.get(f'https://min-api.cryptocompare.com/data/price?fsym={currencies_list[quote]}'
-                           f'&tsyms={currencies_list[base]}')
-        rate = json.loads(req.content)[currencies_list[base]]
+        req = requests.get(f'https://min-api.cryptocompare.com/data/price?fsym={get_currencies_list()[quote]}'
+                           f'&tsyms={get_currencies_list()[base]}')
+        rate = json.loads(req.content)[get_currencies_list()[base]]
         return rate * amount
 
     @staticmethod
     def convert(message):
         values = message.text.split(' ')
-        quote_ticker = base_ticker = quote = base = amount = answer = ""
+        quote = base = amount = answer = ""
         try:
             quote, base, amount = values
             quote = quote.upper()
@@ -33,14 +33,15 @@ class CryptoConverter:
                 answer += f'Невозможно конвертировать одинаковые валюты: "{base}"'
             else:
                 # Проверим, входит ли первая валюта в список валют
+                curr_list = get_currencies_list()
                 try:
-                    quote_ticker = currencies_list[quote]
+                    quote_ticker = curr_list[quote]
                 except KeyError:
                     answer += f'Недопустимая валюта "{quote}"\n чтобы узнать список допустимых валют введите /values'
 
                 # Проверим, входит ли вторая валюта в список валют
                 try:
-                    base_ticker = currencies_list[base]
+                    base_ticker = curr_list[base]
                 except KeyError:
                     answer += f'Недопустимая валюта "{base}"\n чтобы узнать список допустимых валют введите /values'
         except ValueError:
@@ -55,19 +56,37 @@ class CryptoConverter:
         return answer, quote, base, amount, total_base
 
 
-def open_currencies_file():  # Получение валют бота
-    if os.path.exists('currencies.json'):
-        with open('currencies.json', 'r', encoding='utf-8') as currencies_file:
-            currencies_file = json.load(currencies_file)
-    else:  # если файл валют не найден
-        empty_currencies = {'ЕВРО': "EUR", 'РУБЛЬ': "RUB", 'ДОЛЛАР': 'USD'}
-        with open('currencies.json', 'w') as empty_currencies_file:
-            # Создадим файл валют
-            empty_currencies_file.write(json.dumps(empty_currencies, indent=4))
-            print("Нет файла валют. Создан пустой файл валют в текущем каталоге")
-        with open('currencies.json', 'r', encoding='utf-8') as currencies_file:
-            currencies_file = json.load(currencies_file)
-    return currencies_file
+def open_currencies_file(mode="read", added_name=None, added_code=None):  # Получение валют бота
+    if mode == "read":
+        if os.path.exists('currencies.json'):
+            with open('currencies.json', 'r', encoding='utf-8') as currencies_file:
+                currencies_file = json.load(currencies_file)
+        else:  # если файл валют не найден
+            empty_currencies = {'ЕВРО': "EUR", 'РУБЛЬ': "RUB", 'ДОЛЛАР': 'USD'}
+            with open('currencies.json', 'w') as empty_currencies_file:
+                # Создадим файл валют
+                empty_currencies_file.write(json.dumps(empty_currencies, indent=4))
+                print("Нет файла валют. Создан новый файл валют в текущем каталоге")
+            with open('currencies.json', 'r', encoding='utf-8') as currencies_file:
+                currencies_file = json.load(currencies_file)
+        return currencies_file
+    elif mode == "add":
+        if os.path.exists('currencies.json'):
+            with open('currencies.json', 'r', encoding='utf-8') as currencies_file:
+                currencies = json.load(currencies_file)
+            f = open('currencies.json', 'w')
+            f.close()
+            with open('currencies.json', 'w', encoding='utf-8') as currencies_file:
+                print(currencies_file)
+                added_currency = {added_name: added_code}
+                print(added_currency)
+                currencies.update(added_currency)
+                print(currencies_file)
+                currencies_file.write(json.dumps(currencies, indent=4))
 
 
-currencies_list = open_currencies_file()
+def get_currencies_list():
+    return open_currencies_file("read")
+
+
+currencies_list = get_currencies_list()
